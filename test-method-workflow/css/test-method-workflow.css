@@ -1,0 +1,164 @@
+/**
+ * Test Method Workflow CSS
+ */
+
+/* Workflow status container */
+.workflow-status-container {
+	padding: 10px 0;
+}
+
+/* Approval actions */
+.approval-actions {
+	margin: 10px 0;
+}
+
+.approval-actions button {
+	margin-right: 5px;
+}
+
+/* Status indicators */
+.status-approved {
+	color: #46b450;
+	font-weight: bold;
+}
+
+.status-rejected {
+	color: #dc3232;
+	font-weight: bold;
+}
+
+.status-pending {
+	color: #ffb900;
+	font-weight: bold;
+}
+
+.status-draft {
+	color: #666;
+	font-weight: bold;
+}
+
+.status-published {
+	color: #0073aa;
+	font-weight: bold;
+}
+
+.status-locked {
+	color: #777;
+	font-weight: bold;
+}
+
+/* Approval history table */
+.approval-history table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-bottom: 20px;
+}
+
+.approval-history th,
+.approval-history td {
+	padding: 8px;
+	text-align: left;
+	border: 1px solid #ddd;
+}
+
+.approval-history th {
+	background-color: #f2f2f2;
+	font-weight: bold;
+}
+
+.approval-history tr:nth-child(even) {
+	background-color: #f9f9f9;
+}
+
+/* Submit for review button */
+.submit-for-review, 
+.submit-for-final-approval,
+.publish-approved-post {
+	margin-top: 10px;
+	display: block;
+	width: 100%;
+	text-align: center;
+}
+
+/* Description text */
+.workflow-status-container .description {
+	margin: 10px 0;
+	font-style: italic;
+}
+
+/* Buttons */
+.publish-approved-post {
+	background: #46b450;
+	border-color: #46b450;
+}
+
+.publish-approved-post:hover {
+	background: #389e41;
+	border-color: #389e41;
+}
+
+/* Version control container */
+.version-control-container {
+	padding: 10px 0;
+}
+
+/* Revision management */
+.revision-list {
+	margin: 10px 0;
+	padding-left: 20px;
+}
+
+.revision-list li {
+	margin-bottom: 5px;
+}
+
+.revision-status {
+	display: inline-block;
+	font-size: 12px;
+	background: #f5f5f5;
+	padding: 2px 5px;
+	border-radius: 3px;
+}
+
+/* Version info in post content */
+.test-method-version-info {
+	background-color: #f9f9f9;
+	border: 1px solid #ddd;
+	padding: 10px;
+	margin-bottom: 20px;
+	border-radius: 4px;
+}
+
+.test-method-version-info p {
+	margin: 5px 0;
+}
+
+/* Locked notice */
+.test-method-locked-notice {
+	background: #fff8e5;
+	border-left: 4px solid #ffb900;
+	padding: 10px 15px;
+	margin-bottom: 20px;
+}
+
+/* Admin filter links */
+.subsubsub .workflow-status {
+	padding: 2px 5px;
+	border-radius: 3px;
+	font-size: 12px;
+}
+
+button#tmw-unlock-button {
+	display: none;
+}
+
+/* Hide standard WordPress publish button for test methods */
+body.post-type-test_method #publishing-action .button-primary.button-large {
+	display: none !important;
+}
+
+/* Hide Gutenberg publish button for test methods */
+body.post-type-test_method .editor-post-publish-panel__toggle,
+body.post-type-test_method .editor-post-publish-button {
+	display: none !important;
+}

@@ -1,0 +1,280 @@
+/**
+ * Enhanced Test Method Dashboard CSS - Updated for multiple post types
+ */
+
+/* Common styles for all workflow post types */
+.workflow-status-container {
+	padding: 15px;
+	background-color: #f9f9f9;
+	border: 1px solid #e5e5e5;
+	border-radius: 3px;
+	margin-bottom: 15px;
+}
+
+/* Status badges */
+.status-badge {
+	display: inline-block;
+	padding: 3px 8px;
+	border-radius: 12px;
+	font-size: 12px;
+	font-weight: 500;
+	margin-bottom: 10px;
+}
+
+.status-badge.status-draft {
+	background-color: #f0f0f0;
+	color: #666;
+}
+
+.status-badge.status-pending {
+	background-color: #fff8e5;
+	color: #b26200;
+}
+
+.status-badge.status-final-approval {
+	background-color: #e5efff;
+	color: #0066cc;
+}
+
+.status-badge.status-approved {
+	background-color: #ecf9ec;
+	color: #2e8540;
+}
+
+.status-badge.status-rejected {
+	background-color: #fbeaea;
+	color: #dc3232;
+}
+
+.status-badge.status-published {
+	background-color: #e5f5fa;
+	color: #0073aa;
+}
+
+.status-badge.status-locked {
+	background-color: #f0f0f0;
+	color: #555;
+}
+
+/* Workflow actions */
+.workflow-actions {
+	margin-top: 15px;
+}
+
+/* Approval comment textarea */
+.approval-comment-container {
+	margin: 15px 0;
+}
+
+#approval-comment {
+	width: 100%;
+	min-height: 100px;
+	resize: vertical;
+	margin-top: 5px;
+}
+
+/* Approval history table */
+.approval-history table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-bottom: 15px;
+}
+
+.approval-history th,
+.approval-history td {
+	padding: 8px;
+	text-align: left;
+	border: 1px solid #e5e5e5;
+}
+
+.approval-history th {
+	background-color: #f5f5f5;
+	font-weight: 600;
+}
+
+.approval-history tr:nth-child(even) {
+	background-color: #f9f9f9;
+}
+
+/* Status colors */
+.status-approved {
+	color: #46b450;
+	font-weight: bold;
+}
+
+.status-rejected {
+	color: #dc3232;
+	font-weight: bold;
+}
+
+.status-pending {
+	color: #ffb900;
+	font-weight: bold;
+}
+
+.status-draft {
+	color: #666;
+	font-weight: bold;
+}
+
+.status-published {
+	color: #0073aa;
+	font-weight: bold;
+}
+
+.status-locked {
+	color: #777;
+	font-weight: bold;
+}
+
+/* Related test method selection */
+.related-test-method-field {
+	margin-bottom: 15px;
+}
+
+/* Assigned approvers */
+.assigned-approvers-field {
+	margin-bottom: 15px;
+}
+
+/* Dashboard specific styles */
+.test-method-dashboard-enhanced {
+	max-width: 1200px;
+	margin: 20px auto;
+}
+
+/* Dashboard header */
+.dashboard-header {
+	background-color: #fff;
+	padding: 20px;
+	margin-bottom: 20px;
+	border-radius: 4px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Tab navigation */
+.dashboard-tabs {
+	position: relative;
+	background-color: #fff;
+	border-radius: 4px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	margin-bottom: 20px;
+}
+
+.tabs-nav {
+	display: flex;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border-bottom: 1px solid #eee;
+}
+
+.tabs-nav li {
+	margin: 0;
+}
+
+.tabs-nav a {
+	display: block;
+	padding: 12px 20px;
+	font-size: 14px;
+	font-weight: 500;
+	color: #555;
+	text-decoration: none;
+	border-bottom: 3px solid transparent;
+}
+
+.tabs-nav a:hover {
+	color: #0073aa;
+}
+
+.tabs-nav li.active a {
+	color: #0073aa;
+	border-color: #0073aa;
+}
+
+.tab-content {
+	display: none;
+	padding: 20px;
+}
+
+.tab-content.active {
+	display: block;
+}
+
+/* For Gutenberg sidebar */
+.components-panel__row.workflow-status {
+	padding: 16px;
+	border-top: 1px solid #e2e4e7;
+	border-bottom: 1px solid #e2e4e7;
+	margin-top: -1px;
+}
+
+.components-base-control.workflow-control {
+	margin-bottom: 24px;
+}
+
+.components-base-control__label {
+	font-weight: 600;
+}
+
+/* Empty state */
+.empty-state {
+	padding: 30px;
+	text-align: center;
+	background-color: #f9f9f9;
+	border-radius: 4px;
+	margin-bottom: 20px;
+}
+
+.empty-state-icon {
+	font-size: 48px;
+	color: #ccc;
+	margin-bottom: 10px;
+}
+
+.empty-state h3 {
+	font-size: 18px;
+	margin: 10px 0;
+	color: #23282d;
+}
+
+.empty-state p {
+	color: #666;
+	margin-bottom: 15px;
+}
+
+/* Multiple post type enhancements */
+.post-type-ccg-version .workflow-status-container,
+.post-type-tp-version .workflow-status-container {
+	border-left: 4px solid #0073aa;
+}
+
+.post-type-test_method .locking-status-container {
+	border-left: 4px solid #46b450;
+}
+
+/* Cancel approval button */
+.cancel-approval-request {
+	display: inline-block;
+	margin-top: 10px;
+	color: #dc3232;
+	border-color: #dc3232;
+}
+
+.cancel-approval-request:hover,
+.cancel-approval-request:focus {
+	color: #fff;
+	background-color: #dc3232;
+}
+
+/* Spinner for loading states */
+.workflow-loading {
+	text-align: center;
+	padding: 20px;
+}
+
+.workflow-loading .spinner {
+	float: none;
+	visibility: visible;
+	margin: 0 auto;
+}

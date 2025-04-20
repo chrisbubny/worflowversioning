@@ -1,0 +1,114 @@
+/**
+ * Test Method Dashboard CSS
+ */
+
+/* Dashboard stats */
+.test-method-stats {
+	display: flex;
+	flex-wrap: wrap;
+	margin-bottom: 20px;
+}
+
+.test-method-stats .stat-box {
+	flex: 1;
+	min-width: 150px;
+	margin-right: 20px;
+	margin-bottom: 20px;
+	padding: 15px;
+	border-radius: 5px;
+	text-align: center;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.test-method-stats .stat-box h2 {
+	font-size: 24px;
+	margin: 0;
+	padding: 0;
+	line-height: 1.2;
+}
+
+.test-method-stats .stat-box p {
+	margin: 5px 0 0 0;
+	font-size: 14px;
+	color: #666;
+}
+
+/* Status-specific colors */
+.test-method-stats .stat-box.draft {
+	background-color: #f5f5f5;
+	border: 1px solid #ddd;
+}
+
+.test-method-stats .stat-box.pending {
+	background-color: #fff8e5;
+	border: 1px solid #ffb900;
+}
+
+.test-method-stats .stat-box.approved {
+	background-color: #ecf9ec;
+	border: 1px solid #46b450;
+}
+
+.test-method-stats .stat-box.rejected {
+	background-color: #fbeaea;
+	border: 1px solid #dc3232;
+}
+
+.test-method-stats .stat-box.published {
+	background-color: #e5f5fa;
+	border: 1px solid #0073aa;
+}
+
+/* Dashboard widget styles */
+.test-method-widget-stats {
+	margin-bottom: 15px;
+}
+
+.test-method-widget-stats p {
+	margin: 5px 0;
+}
+
+.pending-reviews-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.pending-reviews-list li {
+	padding: 8px 0;
+	border-bottom: 1px solid #eee;
+}
+
+.pending-reviews-list li:last-child {
+	border-bottom: none;
+}
+
+/* Custom dashboard styles */
+.wrap .test-method-dashboard-header {
+	margin-bottom: 20px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid #ddd;
+}
+
+.test-method-dashboard-header h1 {
+	margin-bottom: 10px;
+}
+
+.test-method-dashboard-header p {
+	font-size: 14px;
+	color: #666;
+	margin: 0;
+}
+
+/* Dashboard tables */
+.test-method-dashboard table.widefat {
+	margin-bottom: 20px;
+}
+
+.test-method-dashboard table.widefat th {
+	font-weight: bold;
+}
+
+.test-method-dashboard table.widefat td {
+	vertical-align: middle;
+}

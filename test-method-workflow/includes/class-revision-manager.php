@@ -631,7 +631,159 @@ public function publish_revision() {
 		));
 	}
 	
-
+/**
+	 * Enhanced version comparison tool
+	 * Add this to class-revision-manager.php or create a new file
+	 */
+	public function enhanced_compare_test_method_versions() {
+		// Check nonce
+		check_ajax_referer('test_method_version_comparison', 'nonce');
+		
+		$current_id = isset($_POST['current_id']) ? intval($_POST['current_id']) : 0;
+		$version_id = isset($_POST['version_id']) ? intval($_POST['version_id']) : 0;
+		$version_number = isset($_POST['version_number']) ? sanitize_text_field($_POST['version_number']) : '';
+		
+		if (!$current_id || !$version_id) {
+			wp_send_json_error('Invalid parameters');
+			return;
+		}
+		
+		// Get both posts
+		$current_post = get_post($current_id);
+		$version_post = get_post($version_id);
+		
+		if (!$current_post || !$version_post) {
+			wp_send_json_error('Posts not found');
+			return;
+		}
+		
+		// Get content for comparison
+		$current_content = $current_post->post_content;
+		$version_content = $version_post->post_content;
+		
+		// Get current version for display
+		$current_version = get_post_meta($current_id, "_current_version_number", true);
+		if (empty($current_version)) {
+			$current_version = 'Current';
+		}
+		
+		// Process HTML content for comparison
+		require_once(ABSPATH . 'wp-includes/class-wp-text-diff-renderer-table.php');
+		require_once(ABSPATH . 'wp-includes/class-wp-text-diff-renderer-inline.php');
+		
+		// Create more detailed line-by-line diff
+		$left_lines = explode("\n", $this->prepare_content_for_diff($version_content));
+		$right_lines = explode("\n", $this->prepare_content_for_diff($current_content));
+		
+		$diff = new Text_Diff($left_lines, $right_lines);
+		
+		// Use table renderer for side-by-side comparison
+		$renderer = new WP_Text_Diff_Renderer_Table(array(
+			'show_split_view' => true,
+			'title_left' => sprintf(__('Version %s', 'test-method-workflow'), $version_number),
+			'title_right' => sprintf(__('Current Version %s', 'test-method-workflow'), $current_version),
+		));
+		
+		// Get metadata differences
+		$meta_diff = $this->get_meta_differences($version_id, $current_id);
+		
+		// Create detailed report
+		$output = '<div class="version-diff-report">';
+		$output .= '<h3>' . sprintf(
+			__('Comparing Version %s with Current Version %s', 'test-method-workflow'),
+			esc_html($version_number),
+			esc_html($current_version)
+		) . '</h3>';
+		
+		// Add metadata differences
+		if (!empty($meta_diff)) {
+			$output .= '<div class="meta-differences">';
+			$output .= '<h4>' . __('Metadata Changes', 'test-method-workflow') . '</h4>';
+			$output .= '<ul>';
+			foreach ($meta_diff as $key => $values) {
+				$output .= '<li><strong>' . esc_html($key) . ':</strong> ';
+				$output .= esc_html($values['old']) . ' → ' . esc_html($values['new']);
+				$output .= '</li>';
+			}
+			$output .= '</ul>';
+			$output .= '</div>';
+		}
+		
+		$output .= '<div class="content-differences">';
+		$output .= '<h4>' . __('Content Changes', 'test-method-workflow') . '</h4>';
+		
+		if ($diff->isEmpty()) {
+			$output .= '<p class="notice notice-info">' . __('No textual differences found between versions.', 'test-method-workflow') . '</p>';
+		} else {
+			$output .= $renderer->render($diff);
+		}
+		
+		$output .= '</div>';
+		
+		// Add restore button
+		$output .= '<div class="comparison-actions">';
+		$output .= '<button type="button" class="button restore-this-version" data-post-id="' . $current_id . '" data-version-id="' . $version_id . '" data-nonce="' . wp_create_nonce('test_method_version_restore') . '">';
+		$output .= __('Restore to This Version', 'test-method-workflow');
+		$output .= '</button>';
+		$output .= '</div>';
+		
+		$output .= '</div>';
+		
+		wp_send_json_success(array(
+			'html' => $output
+		));
+	}
+	
+	/**
+	 * Helper function to prepare content for diff
+	 */
+	private function prepare_content_for_diff($content) {
+		// Strip shortcodes but preserve structure
+		$content = preg_replace('/\[([^\]]*)\]/', '[...]', $content);
+		
+		// Replace HTML tags with markers
+		$content = str_replace(array('<br>', '<br />', '<br/>'), "\n", $content);
+		$content = str_replace(array('<p>', '</p>'), array("\n<p>", "</p>\n"), $content);
+		$content = str_replace(array('<div>', '</div>'), array("\n<div>", "</div>\n"), $content);
+		$content = str_replace(array('<h1>', '</h1>'), array("\n<h1>", "</h1>\n"), $content);
+		$content = str_replace(array('<h2>', '</h2>'), array("\n<h2>", "</h2>\n"), $content);
+		$content = str_replace(array('<h3>', '</h3>'), array("\n<h3>", "</h3>\n"), $content);
+		
+		// Normalize line breaks
+		$content = str_replace("\r\n", "\n", $content);
+		
+		// Split at actual paragraphs
+		$content = preg_replace('/\n{2,}/', "\n\n", $content);
+		
+		return $content;
+	}
+	
+	/**
+	 * Get differences in metadata between versions
+	 */
+	private function get_meta_differences($version_id, $current_id) {
+		$tracked_meta_keys = array(
+			'_current_version_number' => __('Version Number', 'test-method-workflow'),
+			'_cpt_version_note' => __('Version Note', 'test-method-workflow')
+			// Add other relevant meta fields here
+		);
+		
+		$differences = array();
+		
+		foreach ($tracked_meta_keys as $key => $label) {
+			$version_value = get_post_meta($version_id, $key, true);
+			$current_value = get_post_meta($current_id, $key, true);
+			
+			if ($version_value !== $current_value) {
+				$differences[$label] = array(
+					'old' => !empty($version_value) ? $version_value : __('(empty)', 'test-method-workflow'),
+					'new' => !empty($current_value) ? $current_value : __('(empty)', 'test-method-workflow')
+				);
+			}
+		}
+		
+		return $differences;
+	}
 	
 	/**
 	 * Filter admin list by revision status

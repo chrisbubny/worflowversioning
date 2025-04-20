@@ -118,18 +118,34 @@ class TestMethod_AccessControl {
 		}
 	}
 	
-	/**
-	 * Filter test method list in admin
-	 */
 	public function filter_test_method_list($query) {
-	global $pagenow, $post_type;
-	
-	// Only on test_method list screen
-	if (!is_admin() || $pagenow !== 'edit.php' || $post_type !== 'test_method' || !$query->is_main_query()) {
-		return;
-	}
+		global $pagenow, $post_type;
 		
-
+		// Only on admin list screens for our post types
+		if (!is_admin() || $pagenow !== 'edit.php' || 
+			!in_array($post_type, array('test_method', 'ccg-version', 'tp-version')) || 
+			!$query->is_main_query()) {
+			return;
+		}
+		
+		// Get user info
+		$user = wp_get_current_user();
+		$roles = (array) $user->roles;
+		
+		// Admin and TP Admin can see everything
+		if (array_intersect($roles, array('administrator', 'tp_admin'))) {
+			return;
+		}
+		
+		// TP Approver can see everything (but might be filtered in other ways)
+		if (in_array('tp_approver', $roles)) {
+			return;
+		}
+		
+		// TP Contributors can only see their own posts
+		if (in_array('tp_contributor', $roles)) {
+			$query->set('author', $user->ID);
+		}
 	}
 	
 	/**

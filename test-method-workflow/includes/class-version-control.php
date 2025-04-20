@@ -248,30 +248,37 @@ class TestMethod_VersionControl {
 	/**
 	 * Handle version updates on publish
 	 */
-public function handle_version_on_publish($post_id) {
-		 // Check if version is already being updated via AJAX to prevent double increment
-		 $version_being_updated = get_post_meta($post_id, '_version_being_updated', true);
-		 if ($version_being_updated) {
-			 // Clear the flag and exit
-			 delete_post_meta($post_id, '_version_being_updated');
-			 return;
-		 }
+	 public function handle_version_on_publish($post_id) {
+	 $version_being_updated = get_post_meta($post_id, '_version_being_updated', true);
+	 if ($version_being_updated) {
+		 // Clear the flag and exit
+		 delete_post_meta($post_id, '_version_being_updated');
+		 return;
+	 }
 	 
-		 // Get current state
-		 $workflow_status = get_post_meta($post_id, '_workflow_status', true);
-		 $version_type = get_post_meta($post_id, $this->version_type_meta_key, true);
-		 $current_version = get_post_meta($post_id, $this->version_meta_key, true);
-		 
-		 // If no version change is needed, exit early
-		 if (empty($version_type) || $version_type === 'none' || $version_type === 'no_change') {
-			 return;
-		 }
-		 
-		 // CRITICAL FIX: Skip version increment entirely during workflow publishing process
-		 if (defined('TMW_PUBLISHING_APPROVED') && TMW_PUBLISHING_APPROVED) {
-			 // Reset version type to avoid re-incrementing on next save
-			 update_post_meta($post_id, $this->version_type_meta_key, 'none');
-			 return;
+	 // IMPORTANT CHANGE: Check if version has already been explicitly set
+	 $version_already_set = get_post_meta($post_id, '_version_already_set', true);
+	 if ($version_already_set) {
+		 // Version was set during submit_for_review, don't modify it again
+		 delete_post_meta($post_id, '_version_already_set');
+		 return;
+	 }
+	 
+	 // Get current state
+	 $workflow_status = get_post_meta($post_id, '_workflow_status', true);
+	 $version_type = get_post_meta($post_id, $this->version_type_meta_key, true);
+	 $current_version = get_post_meta($post_id, $this->version_meta_key, true);
+	 
+	 // If no version change is needed, exit early
+	 if (empty($version_type) || $version_type === 'none' || $version_type === 'no_change') {
+		 return;
+	 }
+	 
+	 // CRITICAL FIX: Skip version increment entirely during workflow publishing process
+	 if (defined('TMW_PUBLISHING_APPROVED') && TMW_PUBLISHING_APPROVED) {
+		 // Reset version type to avoid re-incrementing on next save
+		 update_post_meta($post_id, $this->version_type_meta_key, 'none');
+		 return;
 		 }
 		 
 		 // For regular publishing (not through workflow), handle version increment
@@ -347,6 +354,335 @@ public function handle_version_on_publish($post_id) {
 				}
 			}
 		}
+	}
+	
+	/**
+	 * Enhanced version history display for admin
+	 * Add to class-version-control.php or create a new admin UI component
+	 */
+	public function enhanced_version_history_ui($post) {
+		$current_version = get_post_meta($post->ID, $this->version_meta_key, true);
+		if (empty($current_version)) {
+			$current_version = '0.1';
+		}
+		
+		$revision_history = get_post_meta($post->ID, "_revision_history", true);
+		if (!is_array($revision_history)) {
+			$revision_history = array();
+		}
+		
+		// Get version archives if any
+		$version_archives = $this->get_version_archives($post->ID);
+		
+		// Start UI
+		?>
+		<div class="version-history-ui">
+			<h3><?php _e('Version History', 'test-method-workflow'); ?></h3>
+			<p><?php printf(__('Current Version: %s', 'test-method-workflow'), '<strong>' . esc_html($current_version) . '</strong>'); ?></p>
+			
+			<?php if (!empty($revision_history) || !empty($version_archives)): ?>
+				<div class="version-timeline">
+					<ul class="version-list">
+						<?php 
+						// Combine and sort history
+						$all_versions = array();
+						
+						// Add archives
+						foreach ($version_archives as $archive) {
+							$all_versions[] = array(
+								'type' => 'archive',
+								'version' => $archive['version_number'],
+								'date' => $archive['date'],
+								'user_id' => $archive['user_id'],
+								'note' => isset($archive['note']) ? $archive['note'] : '',
+								'post_id' => $archive['post_id']
+							);
+						}
+						
+						// Add revision history
+						foreach ($revision_history as $history) {
+							if (isset($history['version_number'])) {
+								$all_versions[] = array(
+									'type' => 'history',
+									'version' => $history['version_number'],
+									'date' => $history['date'],
+									'user_id' => $history['user_id'],
+									'status' => $history['status'],
+									'note' => isset($history['note']) ? $history['note'] : ''
+								);
+							}
+						}
+						
+						// Sort by date desc
+						usort($all_versions, function($a, $b) {
+							return $b['date'] - $a['date'];
+						});
+						
+						// Display combined history
+						foreach ($all_versions as $item):
+							$user_info = get_userdata($item['user_id']);
+							$username = $user_info ? $user_info->display_name : __('Unknown User', 'test-method-workflow');
+						?>
+							<li class="version-item version-type-<?php echo esc_attr($item['type']); ?>">
+								<div class="version-header">
+									<span class="version-number"><?php echo esc_html($item['version']); ?></span>
+									<span class="version-date"><?php echo date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $item['date']); ?></span>
+									<span class="version-user"><?php echo esc_html($username); ?></span>
+								</div>
+								
+								<div class="version-details">
+									<?php if ($item['type'] == 'history'): ?>
+										<span class="version-status"><?php echo esc_html(ucfirst($item['status'])); ?></span>
+									<?php else: ?>
+										<span class="version-status archive"><?php _e('Archived Version', 'test-method-workflow'); ?></span>
+									<?php endif; ?>
+									
+									<?php if (!empty($item['note'])): ?>
+										<div class="version-note"><?php echo esc_html($item['note']); ?></div>
+									<?php endif; ?>
+								</div>
+								
+								<div class="version-actions">
+									<?php if ($item['type'] == 'archive' && isset($item['post_id'])): ?>
+										<button type="button" class="button button-small compare-versions-btn" 
+												data-version-id="<?php echo esc_attr($item['post_id']); ?>"
+												data-current-id="<?php echo esc_attr($post->ID); ?>"
+												data-version-number="<?php echo esc_attr($item['version']); ?>">
+											<?php _e('Compare', 'test-method-workflow'); ?>
+										</button>
+										
+										<button type="button" class="button button-small restore-version-btn"
+												data-version-id="<?php echo esc_attr($item['post_id']); ?>"
+												data-current-id="<?php echo esc_attr($post->ID); ?>"
+												data-version-number="<?php echo esc_attr($item['version']); ?>">
+											<?php _e('Restore', 'test-method-workflow'); ?>
+										</button>
+									<?php endif; ?>
+								</div>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				</div>
+				
+			<?php else: ?>
+				<p><?php _e('No version history available.', 'test-method-workflow'); ?></p>
+			<?php endif; ?>
+			
+			<!-- Version Comparison Modal -->
+			<div id="version-comparison-modal" style="display:none; position:fixed; z-index:999; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6);">
+				<div class="version-comparison-content" style="position:relative; background-color:white; margin:5% auto; padding:20px; width:90%; max-width:1200px; max-height:80vh; overflow:auto;">
+					<span class="close-comparison" style="position:absolute; top:10px; right:20px; font-size:28px; cursor:pointer;">&times;</span>
+					<h2><?php _e('Version Comparison', 'test-method-workflow'); ?></h2>
+					<div id="version-comparison-result"></div>
+				</div>
+			</div>
+		</div>
+		
+		<style>
+		.version-history-ui {
+			margin: 20px 0;
+		}
+		.version-list {
+			margin: 0;
+			padding: 0;
+			list-style: none;
+			border-left: 3px solid #ddd;
+			padding-left: 20px;
+		}
+		.version-item {
+			padding: 10px;
+			margin-bottom: 10px;
+			background: #f9f9f9;
+			border-radius: 3px;
+			border-left: 3px solid #0073aa;
+			position: relative;
+		}
+		.version-item::before {
+			content: "";
+			display: block;
+			width: 12px;
+			height: 12px;
+			background: #0073aa;
+			border-radius: 50%;
+			position: absolute;
+			left: -27px;
+			top: 15px;
+		}
+		.version-type-archive {
+			border-left-color: #46b450;
+		}
+		.version-type-archive::before {
+			background: #46b450;
+		}
+		.version-header {
+			display: flex;
+			justify-content: space-between;
+			margin-bottom: 5px;
+		}
+		.version-number {
+			font-weight: bold;
+			font-size: 1.1em;
+		}
+		.version-date {
+			color: #666;
+		}
+		.version-user {
+			color: #0073aa;
+		}
+		.version-details {
+			margin: 5px 0;
+		}
+		.version-status {
+			display: inline-block;
+			padding: 2px 6px;
+			border-radius: 3px;
+			background: #e5e5e5;
+			font-size: 12px;
+		}
+		.version-status.archive {
+			background: #ecf9ec;
+			color: #2e8540;
+		}
+		.version-note {
+			margin-top: 5px;
+			font-style: italic;
+			color: #555;
+		}
+		.version-actions {
+			margin-top: 8px;
+		}
+		</style>
+		
+		<script type="text/javascript">
+		jQuery(document).ready(function($) {
+			// Compare versions
+			$('.compare-versions-btn').on('click', function() {
+				var versionId = $(this).data('version-id');
+				var currentId = $(this).data('current-id');
+				var versionNumber = $(this).data('version-number');
+				
+				// Show modal
+				$('#version-comparison-modal').show();
+				$('#version-comparison-result').html('<p><?php echo esc_js(__('Loading comparison...', 'test-method-workflow')); ?></p>');
+				
+				// Load comparison via AJAX
+				$.ajax({
+					url: ajaxurl,
+					type: 'POST',
+					data: {
+						action: 'enhanced_compare_test_method_versions',
+						current_id: currentId,
+						version_id: versionId,
+						version_number: versionNumber,
+						nonce: '<?php echo wp_create_nonce('test_method_version_comparison'); ?>'
+					},
+					success: function(response) {
+						if (response.success) {
+							$('#version-comparison-result').html(response.data.html);
+						} else {
+							$('#version-comparison-result').html('<p class="error">' + 
+								(response.data || '<?php echo esc_js(__('An error occurred', 'test-method-workflow')); ?>') + '</p>');
+						}
+					},
+					error: function() {
+						$('#version-comparison-result').html('<p class="error"><?php 
+							echo esc_js(__('An error occurred. Please try again.', 'test-method-workflow')); ?></p>');
+					}
+				});
+			});
+			
+			// Restore version
+			$('.restore-version-btn').on('click', function() {
+				var versionId = $(this).data('version-id');
+				var currentId = $(this).data('current-id');
+				var versionNumber = $(this).data('version-number');
+				
+				if (confirm('<?php echo esc_js(__('Are you sure you want to restore to version', 'test-method-workflow')); ?> ' + 
+							 versionNumber + '? <?php echo esc_js(__('Current content will be overwritten.', 'test-method-workflow')); ?>')) {
+					
+					$.ajax({
+						url: ajaxurl,
+						type: 'POST',
+						data: {
+							action: 'restore_test_method_version',
+							post_id: currentId,
+							version_id: versionId,
+							nonce: '<?php echo wp_create_nonce('test_method_version_restore'); ?>'
+						},
+						success: function(response) {
+							if (response.success) {
+								alert('<?php echo esc_js(__('Version restored successfully!', 'test-method-workflow')); ?>');
+								location.reload();
+							} else {
+								alert(response.data || '<?php echo esc_js(__('An error occurred', 'test-method-workflow')); ?>');
+							}
+						},
+						error: function() {
+							alert('<?php echo esc_js(__('An error occurred. Please try again.', 'test-method-workflow')); ?>');
+						}
+					});
+				}
+			});
+			
+			// Close comparison modal
+			$('.close-comparison').on('click', function() {
+				$('#version-comparison-modal').hide();
+			});
+			
+			// Also close when clicking outside the content
+			$(window).on('click', function(e) {
+				if ($(e.target).is('#version-comparison-modal')) {
+					$('#version-comparison-modal').hide();
+				}
+			});
+		});
+		</script>
+		<?php
+	}
+	
+	/**
+	 * Get archived versions of a post
+	 */
+	private function get_version_archives($post_id) {
+		global $wpdb;
+		
+		$archives = array();
+		
+		// Query posts with "_version_parent" meta pointing to this post
+		$query = $wpdb->prepare(
+			"SELECT p.ID, p.post_title, p.post_modified
+			 FROM {$wpdb->posts} p
+			 JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+			 WHERE pm.meta_key = '_version_parent'
+			 AND pm.meta_value = %d
+			 AND p.post_type = %s
+			 ORDER BY p.post_modified DESC",
+			$post_id,
+			get_post_type($post_id)
+		);
+		
+		$results = $wpdb->get_results($query);
+		
+		if ($results) {
+			foreach ($results as $result) {
+				$version_number = get_post_meta($result->ID, '_current_version_number', true);
+				if (empty($version_number)) continue;
+				
+				$user_id = get_post_field('post_author', $result->ID);
+				$note = get_post_meta($result->ID, '_cpt_version_note', true);
+				
+				$archives[] = array(
+					'post_id' => $result->ID,
+					'title' => $result->post_title,
+					'version_number' => $version_number,
+					'date' => strtotime($result->post_modified),
+					'user_id' => $user_id,
+					'note' => $note
+				);
+			}
+		}
+		
+		return $archives;
 	}
 	
 	/**

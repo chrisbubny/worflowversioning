@@ -199,7 +199,7 @@ class TestMethod_AdminUI {
 			/**
 			 * Modify row actions
 			 */
-public function modify_row_actions($actions, $post) {
+			 public function modify_row_actions($actions, $post) {
 				 if ($post->post_type !== 'test_method') {
 					 return $actions;
 				 }
@@ -356,6 +356,277 @@ public function modify_row_actions($actions, $post) {
 					));
 				}
 			}
+			
+			/**
+			 * Fix admin table status display
+			 * Add to class-admin-ui.php or modify display_workflow_status_column method
+			 */
+			public function improved_display_workflow_status_column($column, $post_id) {
+				if ($column === 'workflow_status') {
+					$workflow_status = get_post_meta($post_id, "_workflow_status", true);
+					$post_status = get_post_status($post_id);
+					$is_locked = get_post_meta($post_id, "_is_locked", true);
+					$is_revision = get_post_meta($post_id, "_is_revision", true);
+					
+					// Ensure workflow status is consistent with post status
+					$this->sync_status_if_needed($post_id, $workflow_status, $post_status);
+					
+					// Get the updated workflow status (in case it was changed by sync)
+					$workflow_status = get_post_meta($post_id, "_workflow_status", true);
+					
+					// Status display mappings
+					$status_classes = array(
+						'draft' => 'draft',
+						'pending_review' => 'pending',
+						'pending_final_approval' => 'final-approval',
+						'approved' => 'approved',
+						'rejected' => 'rejected',
+						'publish' => 'published',
+						'locked' => 'locked'
+					);
+					
+					$status_labels = array(
+						'draft' => __('Draft', 'test-method-workflow'),
+						'pending_review' => __('Pending Review', 'test-method-workflow'),
+						'pending_final_approval' => __('Awaiting Final Approval', 'test-method-workflow'),
+						'approved' => __('Approved', 'test-method-workflow'),
+						'rejected' => __('Rejected', 'test-method-workflow'),
+						'publish' => __('Published', 'test-method-workflow'),
+						'locked' => __('Locked', 'test-method-workflow')
+					);
+					
+					// If no workflow status, set default based on post status
+					if (empty($workflow_status)) {
+						$workflow_status = $post_status === 'publish' ? 'publish' : 'draft';
+					}
+					
+					// Get class and label
+					$class = isset($status_classes[$workflow_status]) ? $status_classes[$workflow_status] : 'draft';
+					$label = isset($status_labels[$workflow_status]) ? $status_labels[$workflow_status] : ucfirst($workflow_status);
+					
+					// For locked items, override with locked status
+					if ($is_locked) {
+						$class = 'locked';
+						$label = __('Locked', 'test-method-workflow');
+					}
+					
+					// Display status badge
+					echo '<span class="status-badge status-' . esc_attr($class) . '">' . esc_html($label) . '</span>';
+					
+					// Show revision indicator if applicable
+					if ($is_revision) {
+						$parent_id = get_post_meta($post_id, "_revision_parent", true);
+						$parent_post = get_post($parent_id);
+						
+						if ($parent_post) {
+							echo ' <span class="revision-indicator">' . 
+								 esc_html__('(Revision of', 'test-method-workflow') . ' ' . 
+								 '<a href="' . get_edit_post_link($parent_id) . '">' . 
+								 esc_html($parent_post->post_title) . '</a>)</span>';
+						}
+					}
+					
+					// Show approval count for items in review
+					if ($workflow_status === 'pending_review' || $workflow_status === 'pending_final_approval') {
+						$approvals = get_post_meta($post_id, "_approvals", true);
+						$approval_count = is_array($approvals) ? count($approvals) : 0;
+						
+						echo ' <span class="approval-count">(' . 
+							 sprintf(__('%d/2 approvals', 'test-method-workflow'), $approval_count) . 
+							 ')</span>';
+					}
+					
+					// Show version number
+					$version = get_post_meta($post_id, "_current_version_number", true);
+					if (!empty($version) && $version !== '0.0') {
+						echo ' <span class="version-badge">v' . esc_html($version) . '</span>';
+					}
+				}
+			}
+			
+			/**
+			 * Ensure consistency between workflow status and post status
+			 */
+			private function sync_status_if_needed($post_id, $workflow_status, $post_status) {
+				$needs_update = false;
+				$new_workflow_status = $workflow_status;
+				$new_post_status = $post_status;
+				
+				// Rules for status consistency
+				if ($post_status === 'publish' && $workflow_status !== 'publish') {
+					// Published post should have publish workflow status
+					$new_workflow_status = 'publish';
+					$needs_update = true;
+				} else if ($post_status === 'pending' && !in_array($workflow_status, array('pending_review', 'pending_final_approval'))) {
+					// Pending post should have a pending workflow status
+					$new_workflow_status = 'pending_review';
+					$needs_update = true;
+				} else if ($post_status === 'draft' && $workflow_status === 'publish') {
+					// Draft post cannot have publish workflow status
+					$new_workflow_status = 'draft';
+					$needs_update = true;
+				}
+				
+				// Update if needed
+				if ($needs_update) {
+					update_post_meta($post_id, "_workflow_status", $new_workflow_status);
+				}
+			}
+			
+			/**
+			 * Add version management help tab
+			 * Add to class-version-control.php or class-admin-ui.php
+			 */
+			public function add_version_management_help_tab() {
+				$screen = get_current_screen();
+				
+				if (!$screen) return;
+				
+				// Only add to our post types
+				if (!in_array($screen->post_type, array('test_method', 'ccg-version', 'tp-version'))) {
+					return;
+				}
+				
+				// Add help tabs
+				$screen->add_help_tab(array(
+					'id' => 'version_management_help',
+					'title' => __('Version Management', 'test-method-workflow'),
+					'content' => $this->get_version_management_help_content()
+				));
+				
+				$screen->add_help_tab(array(
+					'id' => 'version_comparison_help',
+					'title' => __('Comparing Versions', 'test-method-workflow'),
+					'content' => $this->get_version_comparison_help_content()
+				));
+				
+				$screen->add_help_tab(array(
+					'id' => 'version_restore_help',
+					'title' => __('Restoring Versions', 'test-method-workflow'),
+					'content' => $this->get_version_restore_help_content()
+				));
+			}
+			
+			/**
+			 * Get help content for version management
+			 */
+			private function get_version_management_help_content() {
+				$content = '<h2>' . __('Version Management Guide', 'test-method-workflow') . '</h2>';
+				
+				$content .= '<h3>' . __('How Versioning Works', 'test-method-workflow') . '</h3>';
+				$content .= '<p>' . __('The version control system uses a standard Major.Minor format (e.g., 1.2):', 'test-method-workflow') . '</p>';
+				$content .= '<ul>';
+				$content .= '<li><strong>' . __('Major Version:', 'test-method-workflow') . '</strong> ' .
+							__('Increments the first number (e.g., 1.0 to 2.0). Use for significant changes that might affect compatibility or introduce major new features.', 'test-method-workflow') . '</li>';
+				$content .= '<li><strong>' . __('Minor Version:', 'test-method-workflow') . '</strong> ' .
+							__('Increments the second number (e.g., 1.1 to 1.2). Use for smaller changes, bug fixes, or minor enhancements.', 'test-method-workflow') . '</li>';
+				$content .= '<li><strong>' . __('No Change:', 'test-method-workflow') . '</strong> ' .
+							__('Keeps the current version number. Use for small edits that don\'t warrant a version change.', 'test-method-workflow') . '</li>';
+				$content .= '</ul>';
+				
+				$content .= '<h3>' . __('When Versions Change', 'test-method-workflow') . '</h3>';
+				$content .= '<p>' . __('Version numbers only change when:', 'test-method-workflow') . '</p>';
+				$content .= '<ol>';
+				$content .= '<li>' . __('You explicitly select a version change type (Major, Minor, or Custom) in the Version Control box.', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('A new document is first submitted for review (automatically changes from 0.0 to 0.1).', 'test-method-workflow') . '</li>';
+				$content .= '</ol>';
+				
+				$content .= '<p><strong>' . __('Important:', 'test-method-workflow') . '</strong> ' .
+							__('Versions do NOT automatically change when:', 'test-method-workflow') . '</p>';
+				$content .= '<ul>';
+				$content .= '<li>' . __('You submit a document for review (after the first submission)', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('The document receives approvals', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('The document is published', 'test-method-workflow') . '</li>';
+				$content .= '</ul>';
+				
+				$content .= '<h3>' . __('How to Change a Version', 'test-method-workflow') . '</h3>';
+				$content .= '<ol>';
+				$content .= '<li>' . __('In the "Version Control" box on the right side of the edit screen, select your desired version update type:', 'test-method-workflow') . '</li>';
+				$content .= '<ul>';
+				$content .= '<li>' . __('Minor: For small changes (increments the second number)', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('Major: For significant changes (increments the first number, resets second to 0)', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('Custom: To manually specify a version number', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('No Change: To keep the current version number', 'test-method-workflow') . '</li>';
+				$content .= '</ul>';
+				$content .= '<li>' . __('Add a version note to document what changed in this version', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('Save or update the document to apply the version change', 'test-method-workflow') . '</li>';
+				$content .= '</ol>';
+				
+				$content .= '<h3>' . __('Version History', 'test-method-workflow') . '</h3>';
+				$content .= '<p>' . __('All version changes are tracked in the revision history, visible in the "Approvals & Comments" section. The history records:', 'test-method-workflow') . '</p>';
+				$content .= '<ul>';
+				$content .= '<li>' . __('Who made the change', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('When it occurred', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('What version number was assigned', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('Any version notes that were added', 'test-method-workflow') . '</li>';
+				$content .= '</ul>';
+				
+				return $content;
+			}
+			
+			/**
+			 * Get help content for version comparison
+			 */
+			private function get_version_comparison_help_content() {
+				$content = '<h2>' . __('Comparing Versions', 'test-method-workflow') . '</h2>';
+				
+				$content .= '<p>' . __('The version comparison tool helps you see differences between different versions of your content:', 'test-method-workflow') . '</p>';
+				
+				$content .= '<h3>' . __('How to Compare Versions', 'test-method-workflow') . '</h3>';
+				$content .= '<ol>';
+				$content .= '<li>' . __('Go to the "Approvals & Comments" section on the edit screen', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('In the Revision History table, locate the version you want to compare', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('Click the "Compare" button for that version', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('A modal window will open showing a side-by-side comparison', 'test-method-workflow') . '</li>';
+				$content .= '</ol>';
+				
+				$content .= '<h3>' . __('Understanding the Comparison', 'test-method-workflow') . '</h3>';
+				$content .= '<ul>';
+				$content .= '<li><span style="background-color:#e6ffed; padding:2px 4px;">' . __('Green highlighted text', 'test-method-workflow') . '</span>: ' .
+							__('Content added in the newer version', 'test-method-workflow') . '</li>';
+				$content .= '<li><span style="background-color:#ffeef0; padding:2px 4px;">' . __('Red highlighted text', 'test-method-workflow') . '</span>: ' .
+							__('Content removed from the older version', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('The left side shows the older version, the right side shows the newer version', 'test-method-workflow') . '</li>';
+				$content .= '</ul>';
+				
+				$content .= '<h3>' . __('Metadata Comparison', 'test-method-workflow') . '</h3>';
+				$content .= '<p>' . __('In addition to content changes, the comparison shows differences in:', 'test-method-workflow') . '</p>';
+				$content .= '<ul>';
+				$content .= '<li>' . __('Version numbers', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('Version notes', 'test-method-workflow') . '</li>';
+				$content .= '<li>' . __('Other relevant metadata', 'test-method-workflow') . '</li>';
+				$content .= '</ul>';
+				
+				return $content;
+			}
+			
+		private function get_version_restore_help_content() {
+			$content = '<h2>' . __('Restoring Previous Versions', 'test-method-workflow') . '</h2>';
+			
+			$content .= '<p>' . __('If you need to revert to a previous version, you can use the restore functionality:', 'test-method-workflow') . '</p>';
+			
+			$content .= '<h3>' . __('How to Restore a Version', 'test-method-workflow') . '</h3>';
+			$content .= '<ol>';
+			$content .= '<li>' . __('First, compare the version you want to restore to make sure it\'s the correct one', 'test-method-workflow') . '</li>';
+			$content .= '<li>' . __('Click the "Restore" button for that version in the Revision History table', 'test-method-workflow') . '</li>';
+			$content .= '<li>' . __('Confirm your decision when prompted', 'test-method-workflow') . '</li>';
+			$content .= '<li>' . __('The content will be reverted to that version, but a new history entry will be created', 'test-method-workflow') . '</li>';
+			$content .= '<li>' . __('You\'ll need to save the document to ensure the restored version is preserved', 'test-method-workflow') . '</li>';
+			$content .= '</ol>';
+			
+			$content .= '<h3>' . __('Important Notes About Restoration', 'test-method-workflow') . '</h3>';
+			$content .= '<ul>';
+			$content .= '<li>' . __('Restoring a version only reverts the content - it does not change the current version number', 'test-method-workflow') . '</li>';
+			$content .= '<li>' . __('The restoration is recorded in the revision history for accountability', 'test-method-workflow') . '</li>';
+			$content .= '<li>' . __('If you want to publish the restored version, you\'ll need to follow the normal workflow (submit for review, get approvals, etc.)', 'test-method-workflow') . '</li>';
+			$content .= '<li>' . __('Only administrators and TP Admins can restore previous versions', 'test-method-workflow') . '</li>';
+			$content .= '</ul>';
+			
+			$content .= '<p><strong>' . __('Tip:', 'test-method-workflow') . '</strong> ' .
+						__('If you need to make further changes after restoring a version, consider creating a new version number to clearly identify it as a new revision.', 'test-method-workflow') . '</p>';
+			
+			return $content;
+		}
 			
 			/**
 			 * Get list help content
